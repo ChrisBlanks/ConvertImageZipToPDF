@@ -2,6 +2,8 @@ import os
 import sys
 import time
 
+import argparse
+
 import zipfile
 
 from pathlib import Path
@@ -21,9 +23,11 @@ class ImageZipToPdfConverter:
      SUPPORTED_IMAGE_FILE_TYPES = [".png",".jpg",".jpeg"]
      
      
-     def __init__(self,inputDirectory,outputDirectory) -> None:
+     def __init__(self,inputDirectory,outputDirectory,debugLogging,verboseLogging) -> None:
           self.inputDirectoryPath = inputDirectory
           self.outputDirectoryPath = outputDirectory
+          self.debugLoggingOn=debugLogging
+          self.verboseInfoLoggingOn=verboseLogging
           
           self._validateIODirectories()
 
@@ -147,6 +151,7 @@ class ImageZipToPdfConverter:
 
      def convertImageZipFilesToPdfs(self, imageZipFileList):
           self._logAppInfo("Starting image zip file conversion...",newLineAtEnd=True)
+          failureList = []
           
           for index, zipFilePath in enumerate(imageZipFileList):
                self._logAppInfo("File #{} : Starting processing of {}".format(index+1,zipFilePath))
@@ -184,9 +189,11 @@ class ImageZipToPdfConverter:
                     self._logAppInfo("File #{} : Finished Processing of {}".format(index+1,zipFilePath),newLineAtEnd=True)
                     
                except:
-                    self._logAppInfo("File #{} : Failed processing of {}. Attempting next file.".format(index+1,zipFilePath))                        
+                    self._logAppError("File #{} : Failed processing of {}. Attempting next file.".format(index+1,zipFilePath))
+                    failureList.append(zipFilePath)                        
           
           self._logAppInfo("Completed all file conversions.",newLineAtStart=True,newLineAtEnd=True)
+          self.reportFailures(failureList)
           self.deleteTemporaryDir()
 
 
@@ -257,18 +264,35 @@ class ImageZipToPdfConverter:
                append_images=images[1:]
           )
           
-          
+     def reportFailures(self, listOfFailedFiles):
+          if not listOfFailedFiles:
+               pass #if empty, skip
+          else:
+               self._logAppError("List of files that could not be processed:",newLineAtStart=True)
+               self._logAppError(', '.join(listOfFailedFiles),newLineAtEnd=True)
 
+          
+          
+def setupCommandLineArguments():
+     desc = "Application for converting zip archives that contain image files into PDF files."
+     parser = argparse.ArgumentParser(description=desc)
+     
+     parser.add_argument("inputDir", help="Input directory that contains image zip archive files")
+     parser.add_argument("outputDir", help="Output directory to store generated PDF files.")
+     
+     parser.add_argument("-d","--debug", help="Show debug logging", action='store_true')
+     parser.add_argument("-v","--verbose", help="Show verbose info logging", action='store_true')
+     
+     return parser.parse_args()
 
 
 if __name__ == "__main__":
-     #run normal script here
+     #run normal script here     
+     args = setupCommandLineArguments()
+     
      print("Running " +os.path.basename( __file__))
-     print()
+     print("Required Arguments: input dir={}, output dir={}".format(args.inputDir,args.outputDir))
+     print("Optional Arguments: debug logging={}, verbose logging={}".format(args.debug,args.verbose))
      
-     testSource=""
-     testOutput=""
-     
-     newConverter = ImageZipToPdfConverter(testSource,testOutput)
-     
+     newConverter = ImageZipToPdfConverter(args.inputDir,args.outputDir,args.debug,args.verbose)
      newConverter.processAllImageZipFiles()
